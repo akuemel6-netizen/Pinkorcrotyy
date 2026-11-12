@@ -1,0 +1,110 @@
+-- Garden Tower Defense Universal Script
+-- Platform: Delta / Standard Executor
+-- Architecture: State-aware UI injection
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Lobby PlaceId (Update this to GTD's actual Lobby ID)
+local LOBBY_PLACE_ID = 1234567890 
+
+-- [1] ANTI-CHEAT HOOK
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    if method == "Kick" or method == "kick" then return nil end
+    return oldNamecall(self, ...)
+end)
+setreadonly(mt, true)
+
+-- [2] UI BOOTSTRAPPER (Simple UI to avoid Android crashes)
+local function CreateBasicUI(titleText)
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "GTD_4080"
+    screenGui.Parent = CoreGui
+    
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 200, 0, 150)
+    frame.Position = UDim2.new(0, 50, 0, 50)
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    frame.Parent = screenGui
+    
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Text = titleText
+    title.Parent = frame
+    
+    return frame, screenGui
+end
+
+-- [3] LOBBY MODULE
+local function LoadLobby()
+    local frame, gui = CreateBasicUI("GTD Lobby UI")
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.9, 0, 0, 30)
+    btn.Position = UDim2.new(0.05, 0, 0.3, 0)
+    btn.Text = "Auto Join Match"
+    btn.Parent = frame
+    
+    btn.MouseButton1Click:Connect(function()
+        -- Add specific lobby remote firing here
+        print("Looking for open match...")
+    end)
+    print("Loaded Lobby Module.")
+end
+
+-- [4] IN-GAME TRACKER MODULE (The Place Tracker)
+local function LoadInGame()
+    local frame, gui = CreateBasicUI("GTD Place Tracker")
+    
+    local toggle = Instance.new("TextButton")
+    toggle.Size = UDim2.new(0.9, 0, 0, 30)
+    toggle.Position = UDim2.new(0.05, 0, 0.3, 0)
+    toggle.Text = "Track Placements: OFF"
+    toggle.Parent = frame
+    
+    local tracking = false
+    toggle.MouseButton1Click:Connect(function()
+        tracking = not tracking
+        toggle.Text = tracking and "Track Placements: ON" or "Track Placements: OFF"
+        
+        if tracking then
+            -- Mimicking the tracker logic from the repo
+            task.spawn(function()
+                while tracking do
+                    task.wait(1)
+                    local path = Workspace:FindFirstChild("Path") or Workspace:FindFirstChild("EnemyPath")
+                    if path then
+                        -- Draws a visual indicator (ESP) on valid placement spots
+                        for _, node in pairs(path:GetChildren()) do
+                            if node:IsA("BasePart") and not node:FindFirstChild("TrackerESP") then
+                                local highlight = Instance.new("Highlight")
+                                highlight.Name = "TrackerESP"
+                                highlight.FillColor = Color3.fromRGB(0, 255, 0)
+                                highlight.Parent = node
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+    print("Loaded In-Game Tracker Module.")
+end
+
+-- [5] STATE ROUTER
+if game.PlaceId == LOBBY_PLACE_ID then
+    LoadLobby()
+else
+    LoadInGame()
+end
+
+print("4080 Universal Bootstrapper Stashed.")
